@@ -1,0 +1,10 @@
+
+Audio:
+- Music made by Cmesias
+- Laser sound made in Bfxr by Cmesias
+- Explosion sound made in Bfxr by Cmesias
+
+GFX:
+- Background: opengameart.org/content/solar-system
+- Purple animation made by Cmesias
+- Ship by Cmesias

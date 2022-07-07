@@ -1,0 +1,1148 @@
+
+struct Colony {
+public:
+	int x,y,w,h;
+	int spawnTimer;
+	int spawned;
+	int maxSpawn;
+	bool alive;
+	bool mouseOnColony;
+	string type;
+};
+
+struct Asteroid {
+public:
+	float x,y,w,h;
+	float angle;
+	int angleSpe, angleDir;
+	float vX,vY;
+	float speed;
+	bool alive;
+	bool collision;
+	bool MouseOnAsteroid;
+	bool onScreen;
+	string type;
+	int health;
+	bool damaged; 		//Asteroid is damaged
+	int damagedTimer;	//Asteroid damaged animation timer
+};
+
+
+struct Particle {
+public:
+	float x, y;
+	int w, h;
+	int alpha;
+	int alphaspeed;
+	int time;
+	int deathTimer;
+	int deathTimerSpeed;
+	float angle;
+	double vX, vY;
+	double speed;
+	double angleSpe, angleDir;
+	bool onScreen;
+	bool alive;
+	bool collide;
+	string side;
+	string type;
+	int damage;
+	SDL_Color color;
+	int layer;
+};
+
+const int ENEMY_MAX = 8;		// Max number of Enemies
+int ENEMY_COUNT 	= 0;		// Current number of Enemies
+int ENEMY_SPAWN 	= 1;		// Max amount of enemies that can be spawned at the same time
+int SCORE_COUNT		= 0; 		// Every 1000 score spawn an enemy
+bool SPAWN_ENEMY	= false;	// Every accumulated 1000 score from the Player, we spawn an Enemy
+struct Enemy {
+public:
+	float x, y;
+	int w, h;
+	int timer;
+	float vX, vY, speed;
+	int health;
+	int damagedTimer;
+	bool damaged;
+	bool collide;
+	bool alive;
+};
+
+void initAsteroid(Asteroid asteroid[]) {
+	for (int i = 0; i < 128; i++) {
+		asteroid[i].x 				= 0;
+		asteroid[i].y 				= 0;
+		asteroid[i].w 				= 0;
+		asteroid[i].h 				= 0;
+		asteroid[i].vX 				= 0.0;
+		asteroid[i].vY 				= 0.0;
+		asteroid[i].speed 			= 0.0;
+		asteroid[i].angle 			= 0.0;
+		asteroid[i].angleSpe 		= 0;
+		asteroid[i].angleDir 		= 0;
+		asteroid[i].damagedTimer 	= 0;
+		asteroid[i].health 			= 100;
+		asteroid[i].alive 			= false;
+		asteroid[i].collision 		= false;
+		asteroid[i].MouseOnAsteroid = false;
+		asteroid[i].damaged 		= false;
+		asteroid[i].onScreen 		= false;
+		asteroid[i].type 			= "";
+	}
+}
+
+void spawnAsteroidAngle(Asteroid asteroid[],
+		int x, int y,
+		int w, int h,
+		double angle, double speed) {
+	for (int i = 0; i < 128; i++)
+	{
+		if (!asteroid[i].alive)
+		{
+			asteroid[i].w 				= w;
+			asteroid[i].h 				= h;
+			if (w == 48){
+				asteroid[i].type 		= "small";
+			}else if (w==96){
+				asteroid[i].type 		= "medium";
+			}else if (w==128){
+				asteroid[i].type 		= "large";
+			}
+			asteroid[i].x 				= x;
+			asteroid[i].y 				= y;
+			asteroid[i].speed 			= speed;
+			asteroid[i].vX 				= cos( (PI/180)*(angle) );
+			asteroid[i].vY 				= sin( (PI/180)*(angle) );
+			asteroid[i].angle 			= 0.0;
+			asteroid[i].damagedTimer 	= 0;
+			asteroid[i].health			= 100;
+			asteroid[i].angleSpe 		= fRand(1.0, 2.5);
+			if (asteroid[i].angleSpe % 2 == 0){
+				asteroid[i].angleDir 	= 1;}else{
+				asteroid[i].angleDir 	= -1;}
+			asteroid[i].MouseOnAsteroid = false;
+			asteroid[i].collision 		= false;
+			asteroid[i].alive 			= true;
+			asteroid[i].onScreen 		= false;
+			asteroid[i].damaged 		= false;
+			ASTEROIDS++;
+			break;
+		}
+	}
+}
+
+void spawnAsteroid(Asteroid asteroid[], int spawnx, int spawny, int w, int h, int targetx,int targety, float speed, string type) {
+	for (int i = 0; i < 128; i++) {
+		if (!asteroid[i].alive) {
+			asteroid[i].health 			= 100;
+			asteroid[i].type 			= type;
+			asteroid[i].x 				= spawnx;
+			asteroid[i].y 				= spawny;
+			asteroid[i].w 				= w;
+			asteroid[i].h 				= h;
+			asteroid[i].speed 			= speed;
+			float distance 				= sqrt((targetx - spawnx)* (targetx - spawnx - asteroid[i].w / 2)+
+										   	   (targety - spawny)* (targety - spawny - asteroid[i].h / 2));
+			asteroid[i].vX 				= (targetx - spawnx - asteroid[i].w / 2) / distance;
+			asteroid[i].vY 				= (targety - spawny - asteroid[i].h / 2) / distance;
+			asteroid[i].damagedTimer 	= 0;
+			asteroid[i].angle 			= 0.0;
+			asteroid[i].angleSpe 		= fRand(1.0, 2.5);
+			if (asteroid[i].angleSpe % 2 == 0){
+				asteroid[i].angleDir 	= 1;}else{
+				asteroid[i].angleDir 	= -1;}
+			asteroid[i].collision 		= false;
+			asteroid[i].damaged 		= false;
+			asteroid[i].MouseOnAsteroid = false;
+			asteroid[i].onScreen 		= false;
+			asteroid[i].alive 			= true;
+			ASTEROIDS++;
+			break;
+		}
+	}
+}
+
+// [0]: remove asteroid,
+void configAsteroid(Asteroid asteroid[], int command, int mx, int my) {
+	for (int i = 0; i < 128; i++) {
+		if (asteroid[i].alive) {
+			switch (command){
+				case 0:
+					if (asteroid[i].MouseOnAsteroid) {
+						asteroid[i].alive = false;
+						ASTEROIDS--;
+					}
+				break;
+			}
+		}
+	}
+}
+
+void copyAsteroidOnMouse(Asteroid asteroid[]) {
+	//COPY THE WIDTH/HEIGHT OF THE BLOCK YOU ARE CURRENTLY OVER
+	for (int i = 0; i < 128; i++) {
+		if (asteroid[i].alive) {
+			if (asteroid[i].MouseOnAsteroid){
+				BLOCKX = asteroid[i].x;
+				BLOCKY = asteroid[i].y;
+				BLOCKW = asteroid[i].w;
+				BLOCKH = asteroid[i].h;
+			}
+		}
+	}
+}
+
+// Update asteroid
+void updateAsteroid(Asteroid asteroid[], Explosion explosion[], bool alive, bool shield, int &score, int visionX, int visionY, int objectRadius, int &health, int mx, int my, int camx, int camy) {
+	for (int i = 0; i < 128; i++)
+	{
+		if (asteroid[i].alive)
+		{
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			///////////////////////////////////// CIRCLE COLLISION //////////////////////////////////////
+			//-----------------------------------------------------------------------------------------//
+			if (alive) {
+				// Asteroid collision target
+				float bmx = visionX;
+				float bmy = visionY;
+
+				//Calculate distance of asteroid and player
+				float distance = sqrt((bmx - asteroid[i].x - asteroid[i].w / 2)* (bmx - asteroid[i].x- asteroid[i].w / 2) +
+								      (bmy - asteroid[i].y - asteroid[i].h / 2)* (bmy - asteroid[i].y- asteroid[i].h / 2));
+
+				if (distance < objectRadius + asteroid[i].w/2 && !shield){
+					asteroid[i].health -= 50;
+					health -= 20;
+				}
+			}
+			//-----------------------------------------------------------------------------------------//
+			///////////////////////////////////// CIRCLE COLLISION //////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////////////////////////
+
+			// Asteroid movement
+			asteroid[i].x += asteroid[i].vX * asteroid[i].speed;
+			asteroid[i].y += asteroid[i].vY * asteroid[i].speed;
+
+			// Asteroid spin
+			asteroid[i].angle += asteroid[i].angleSpe * asteroid[i].angleDir;
+
+			// Asteroid screen check
+			if (asteroid[i].x + asteroid[i].w >= camx && asteroid[i].x <= camx + gWindow.getWidth() &&
+				asteroid[i].y + asteroid[i].h >= camy && asteroid[i].y <= camy + gWindow.getHeight()) {
+				asteroid[i].onScreen = true;
+			}else{
+				asteroid[i].onScreen = false;
+			}
+
+			// Mouse on Asteroid
+			if (mx > asteroid[i].x && mx < asteroid[i].x + asteroid[i].w &&
+				my > asteroid[i].y && my < asteroid[i].y + asteroid[i].h) {
+				asteroid[i].MouseOnAsteroid = true;
+			} else {
+				asteroid[i].MouseOnAsteroid = false;
+			}
+
+			//Asteroid damaged animation timer
+			if (asteroid[i].damaged){
+				asteroid[i].damagedTimer += 1;
+				if (asteroid[i].damagedTimer > 20){
+					asteroid[i].damaged = false;
+					asteroid[i].damagedTimer = 0;
+				}
+			}
+
+			// Asteroid death
+			if (asteroid[i].health <= 0)
+			{
+				//Spawn explosion after asteroid death
+				spawnExplosion(explosion, asteroid[i].x+asteroid[i].w/2-asteroid[i].w/2, asteroid[i].y+asteroid[i].h/2-asteroid[i].h/2,
+										  asteroid[i].w, asteroid[i].h, 255, "normal");
+
+				if (asteroid[i].type=="large"){
+					for (int j = 0; j < 2; j++) {
+			            double randAngle 	= fRand(0.0, 360.0);
+			            double radian		= (PI/180)*(randAngle);
+			            double radianCos	= cos(radian);
+			            double radianSin	= sin(radian);
+			            spawnAsteroidAngle(asteroid, asteroid[i].x+asteroid[i].w/2-96/2 + (10 * radianCos),
+			            							 asteroid[i].y+asteroid[i].h/2-96/2 + (10 * radianSin),
+													 96, 96,
+			    									 randAngle, 1.3);
+					}
+					score += 20;
+					SCORE_COUNT += 20;
+
+				}else if (asteroid[i].type=="medium"){
+					for (int j = 0; j < 2; j++) {
+			            double randAngle 	= fRand(0.0, 360.0);
+			            double radian		= (PI/180)*(randAngle);
+			            double radianCos	= cos(radian);
+			            double radianSin	= sin(radian);
+			            spawnAsteroidAngle(asteroid, asteroid[i].x+asteroid[i].w/2-48/2 + (10 * radianCos),
+			            							 asteroid[i].y+asteroid[i].h/2-48/2 + (10 * radianSin),
+													 48, 48,
+			    									 randAngle, 2.3);
+					}
+					score += 50;
+					SCORE_COUNT += 50;
+				}else if (asteroid[i].type=="small"){
+					score += 100;
+					SCORE_COUNT += 100;
+				}
+				asteroid[i].alive = false;
+				ASTEROIDS--;
+			}
+
+			// Asteroid and Map collision
+			if (asteroid[i].x+asteroid[i].w < map.x) {
+				asteroid[i].x = map.x+map.w;
+			}
+			if (asteroid[i].x > map.x+map.w) {
+				asteroid[i].x = map.x-asteroid[i].w;
+			}
+			if (asteroid[i].y+asteroid[i].h < map.y) {
+				asteroid[i].y = map.y+map.h;
+			}
+			if (asteroid[i].y > map.y+map.h) {
+				asteroid[i].y = map.y-asteroid[i].h;
+			}
+		}
+	}
+}
+
+//Render asteroid
+void renderAsteroid(Asteroid asteroid[], int camx, int camy) {
+	for (int i = 0; i < 128; i++) {
+		if (asteroid[i].alive) {
+
+			//if (asteroid[i].onScreen){
+				if (asteroid[i].type=="large"){
+					gAsteroid.render(gRenderer12, asteroid[i].x - camx, asteroid[i].y - camy, asteroid[i].w, asteroid[i].h, &rAsteroid[2], asteroid[i].angle);
+				}
+				if (asteroid[i].type=="medium"){
+					gAsteroid.render(gRenderer12, asteroid[i].x - camx, asteroid[i].y - camy, asteroid[i].w, asteroid[i].h, &rAsteroid[1], asteroid[i].angle);
+				}
+				if (asteroid[i].type=="small"){
+					gAsteroid.render(gRenderer12, asteroid[i].x - camx, asteroid[i].y - camy, asteroid[i].w, asteroid[i].h, &rAsteroid[0], asteroid[i].angle);
+				}
+			//}
+
+
+			/*std::stringstream tempsi;
+
+			tempsi.str(std::string());
+			tempsi << "asteroid[i].x: " << asteroid[i].x;
+			gText.loadFromRenderedText(tempsi.str().c_str(), white, gFont13);
+			gText.render(50, 0, gText.getWidth(), gText.getHeight());
+
+			tempsi.str(std::string());
+			tempsi << "asteroid[i].y: " << asteroid[i].y;
+			gText.loadFromRenderedText(tempsi.str().c_str(), white, gFont13);
+			gText.render(50, 15, gText.getWidth(), gText.getHeight());
+
+			tempsi.str(std::string());
+			tempsi << "asteroid[i].w: " << asteroid[i].w;
+			gText.loadFromRenderedText(tempsi.str().c_str(), white, gFont13);
+			gText.render(50, 30, gText.getWidth(), gText.getHeight());
+
+			tempsi.str(std::string());
+			tempsi << "asteroid[i].h: " << asteroid[i].h;
+			gText.loadFromRenderedText(tempsi.str().c_str(), white, gFont13);
+			gText.render(50, 45, gText.getWidth(), gText.getHeight());
+
+			tempsi.str(std::string());
+			tempsi << "asteroid[i].alive: " << asteroid[i].alive;
+			gText.loadFromRenderedText(tempsi.str().c_str(), white, gFont13);
+			gText.render(50, 60, gText.getWidth(), gText.getHeight());
+
+
+			// Render asteroid collision box
+			SDL_Rect tempRect = { asteroid[i].x  - camx, asteroid[i].y - camy, asteroid[i].w, asteroid[i].h };
+			SDL_SetRenderDrawColor(gRenderer12, 255, 255, 255, 255);
+			SDL_RenderDrawRect(gRenderer12, &tempRect);
+
+			//If the player's mouse is on top of asteroid then show certain details of asteroid
+			if (asteroid[i].MouseOnAsteroid) {
+				SDL_Rect tempRect = { asteroid[i].x  - camx, asteroid[i].y - camy, asteroid[i].w, asteroid[i].h };
+				SDL_SetRenderDrawColor(gRenderer12, 0, 255, 0, 255);
+				SDL_RenderDrawRect(gRenderer12, &tempRect);
+			}
+
+			if (asteroid[i].damaged) {
+				SDL_Rect blockcb = { asteroid[i].x  - camx, asteroid[i].y
+						- camy, asteroid[i].w, asteroid[i].h };
+				SDL_SetRenderDrawColor(gRenderer12, 244, 100, 0, 255);
+				SDL_RenderDrawRect(gRenderer12, &blockcb);
+			}*/
+		}
+	}
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////// COLONY VARIABLES //////////////////////////////////////
+//-----------------------------------------------------------------------------------------//
+void initColony(Colony colony[]) {
+	for (int i = 0; i < 200; i++) {
+		colony[i].x = 0;
+		colony[i].y = 0;
+		colony[i].w = 0;
+		colony[i].h = 0;
+		colony[i].spawnTimer 		= 0;
+		colony[i].spawned 			= 0;
+		colony[i].maxSpawn 			= 10;
+		colony[i].type 				= "";
+		colony[i].alive 			= false;
+		colony[i].mouseOnColony 	= false;
+	}
+}
+void spawnColony(Colony colony[], int x, int y, int w, int h) {
+	for (int i = 0; i < 200; i++){
+		if (!colony[i].alive){
+			if (colonyIndex == 1){
+				colony[i].type = "asteroid";
+			}
+			colony[i].x 			= x;
+			colony[i].y 			= y;
+			colony[i].w 			= w;
+			colony[i].h 			= h;
+			colony[i].spawnTimer 	= 0;
+			colony[i].spawned 		= 0;
+			colony[i].maxSpawn 		= 1;
+			colony[i].mouseOnColony = false;
+			colony[i].alive 		= true;
+			colonyCount++;
+			break;
+		}
+	}
+}
+void removeColony(Colony colony[]) {
+	for (int i = 0; i < 200; i++) {
+		if (colony[i].alive) {
+			if (colony[i].mouseOnColony) {
+				colony[i].alive = false;
+				colonyCount--;
+			}
+		}
+	}
+}
+void updateColony(Colony colony[], Asteroid asteroid[], int targetX, int targetY, int mx, int my, int camx, int camy)
+{
+	for (int i = 0; i < 200; i++)
+	{
+		if (colony[i].alive)
+		{
+			// Mouse on Colony check
+			if (mx > colony[i].x && mx < colony[i].x + colony[i].w &&
+				my > colony[i].y && my < colony[i].y + colony[i].h) {
+				colony[i].mouseOnColony = true;
+			} else {
+				colony[i].mouseOnColony = false;
+			}
+
+			// Handle events for "small-asteroid"
+			if (colony[i].type == "asteroid")
+			{
+				colony[i].spawnTimer += 1;
+				if (colony[i].spawnTimer > 60)
+				{
+					colony[i].spawnTimer 	= 0;
+					colony[i].spawned 	   += 1;
+		            int randAngle 			= fRand(0.0, 360.0);
+		            spawnAsteroidAngle(asteroid, colony[i].x, colony[i].y, colony[i].w, colony[i].h,
+		    									 randAngle, 0.5);
+				}
+
+				// Destroy Colony after max spawns has been reached
+				if (colony[i].spawned >= colony[i].maxSpawn){
+					colony[i].alive = false;
+					colonyCount--;
+				}
+			}
+		}
+	}
+}
+void renderColony(Colony colony[], int camx, int camy) {
+	for (int i = 0; i < 200; i++) {
+		if (colony[i].alive) {
+			SDL_Rect colonyRect = { colony[i].x-camx, colony[i].y-camy, colony[i].w, colony[i].h};
+			SDL_SetRenderDrawColor(gRenderer12, 244, 144, 20, 255);
+			SDL_RenderDrawRect(gRenderer12, &colonyRect);
+		}
+	}
+}
+//-----------------------------------------------------------------------------------------//
+///////////////////////////////////// COLONY VARIABLES //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////// ENEMY BULLETS //////////////////////////////////////////////////////////
+//-------------------------------------------------------------------------------------------------------------------------------//
+
+void initParticle(Particle particle[]) {
+	for (int i = 0; i < 1024; i++) {
+		particle[i].x = 0;
+		particle[i].y = 0;
+		particle[i].w = 4;
+		particle[i].h = 4;
+		particle[i].alpha = 255;
+		particle[i].time = 0;
+		particle[i].alphaspeed = 0;
+		particle[i].deathTimer = 100;
+		particle[i].deathTimerSpeed = 1;
+		particle[i].speed = 0.00;
+		particle[i].vX = 0.00;
+		particle[i].vY = 0.00;
+		particle[i].speed = 0.00;
+		particle[i].angle = 0.00;
+		particle[i].angleSpe = 0;
+		particle[i].angleDir = 0;
+		particle[i].onScreen = false;
+		particle[i].collide = false;
+		particle[i].alive = false;
+		particle[i].side = "";
+		particle[i].type = "";
+		particle[i].damage = 0;
+		particle[i].color = white;
+	}
+}
+
+// Spawn a Particle: moves based on angle given and fixed speed
+void spawnParticleAngle(Particle particle[],
+		int playerx, int playery,
+		int w, int h,
+		double angle, double speed,
+		int alpha, int alphaspeed,
+		int deathTimer, int deathTimerSpeed,
+		double damage, string type,
+		SDL_Color color, int layer) {
+	for (int i = 0; i < 1024; i++)
+	{
+		if (!particle[i].alive)
+		{
+			particle[i].time 			= 0;
+			particle[i].angle 			= angle;
+			particle[i].speed 			= speed;
+			particle[i].vX 				= (cos( (PI/180)*(angle) ));
+			particle[i].vY 				= (sin( (PI/180)*(angle) ));
+			particle[i].type 			= type;
+			particle[i].damage 			= damage;
+			particle[i].x 				= playerx;
+			particle[i].y 				= playery;
+			particle[i].w 				= w;
+			particle[i].h 				= h;
+			particle[i].alphaspeed 		= alphaspeed;
+			particle[i].alpha 			= alpha;
+			particle[i].deathTimer 		= deathTimer;
+			particle[i].deathTimerSpeed = deathTimerSpeed;
+			particle[i].side 			= "";
+			particle[i].angleSpe		= 1;
+			particle[i].angleDir		= 1;
+			particle[i].onScreen 		= false;
+			particle[i].collide 		= false;
+			particle[i].alive 			= true;
+			particle[i].color 			= color;
+			particle[i].layer 			= layer;
+			objectCountParticle++;
+			break;
+		}
+	}
+}
+
+// Spawn a Particle: moves based on a fixed velocity given and fixed speed
+void fireParticle(Particle particle[], int damage, string type,
+									   int spawnx, int spawny, int w, int h,
+									   double speed, float vX, float vY,
+									   int alphaspeed, int alpha,
+									   int deathTimer, int deathTimerSpeed, double angle, double angleSpe, double angleDir,
+									   SDL_Color color, int layer) {
+	for (int i = 0; i < 1024; i++) {
+		if (!particle[i].alive) {
+			particle[i].damage 			= damage;
+			particle[i].type 			= type;
+			particle[i].alphaspeed 		= alphaspeed;
+			particle[i].alpha  			= alpha;
+			particle[i].x  				= spawnx;
+			particle[i].y  				= spawny;
+			particle[i].w  				= w;
+			particle[i].h  				= h;
+			particle[i].speed  			= speed;
+			particle[i].angle 			= angle;
+			particle[i].angleSpe		= angleSpe;
+			particle[i].angleDir		= angleDir;
+			particle[i].vX  			= vX;
+			particle[i].vY  			= vY;
+			particle[i].deathTimer 		= deathTimer;
+			particle[i].deathTimerSpeed = deathTimerSpeed;
+			particle[i].time 			= 0;
+			particle[i].side 			= "";
+			particle[i].onScreen 		= false;
+			particle[i].collide 		= false;
+			particle[i].alive 			= true;
+			particle[i].color 			= color;
+			particle[i].layer 			= layer;
+			//particle[i].angle 		= atan2 ( radianSin, radianCos) * 180 / PI;
+			objectCountParticle++;
+			break;
+		}
+	}
+}
+
+// Spawn particles: represent stars
+void spawnStars(Particle particle[], int x, int y, float w, float h, int alphaspeed, int alpha, int camx, int camy, SDL_Color color, int layer){
+	fireParticle(particle, 0, "stars",
+							x,y,w, h,
+							0,
+							0.0,0.0, alphaspeed, alpha,
+							100, 1, 0.0, 0.0, 0.0,
+							color, layer);
+}
+
+// Spawn a Particle: moves based on location of a target given
+void fireParticle2(Particle particle[], int damage, int spawnx, int spawny, int w, int h, int targetx,int targety,
+										int alphaspeed, int alpha,
+										int deathTimer, int deathTimerSpeed,
+										double speed, string type,
+										SDL_Color color, int layer) {
+	for (int i = 0; i < 1024; i++) {
+		if (!particle[i].alive) {
+			particle[i].damage 			= damage;
+			particle[i].alpha  			= alpha;
+			particle[i].deathTimer 		= deathTimer;
+			particle[i].alphaspeed 		= alphaspeed;
+			particle[i].deathTimerSpeed = deathTimerSpeed;
+			particle[i].type 			= type;
+			particle[i].x 				= spawnx;
+			particle[i].y 				= spawny;
+			particle[i].w 				= w;
+			particle[i].h 				= h;
+			particle[i].speed 			= speed;
+			float bmx 					= targetx;
+			float bmy 					= targety;
+			float distance 				= sqrt((bmx - spawnx) * (bmx - spawnx - particle[i].w / 2) +
+											   (bmy - spawny) * (bmy - spawny - particle[i].h / 2));
+			particle[i].vX 				= particle[i].speed  *  (bmx - spawnx - particle[i].w / 2) / distance;
+			particle[i].vY 				= particle[i].speed  *  (bmy - spawny - particle[i].h / 2) / distance;
+			particle[i].angle 			= atan2(bmy - particle[i].y, bmx - particle[i].x);
+			particle[i].angle 			= particle[i].angle * (180 / 3.1416);
+			particle[i].angleSpe		= 0;
+			particle[i].angleDir		= 0;
+			particle[i].time 			= 0;
+			particle[i].side 			= "";
+			particle[i].collide 		= false;
+			particle[i].onScreen 		= false;
+			particle[i].alive 			= true;
+			particle[i].color 			= color;
+			particle[i].layer 			= layer;
+			objectCountParticle++;
+			break;
+		}
+	}
+}
+
+// Update Particles
+void updateParticles(Particle particle[]) {
+	for (int i = 0; i < 1024; i++) {
+		if (particle[i].alive)
+		{
+			// Particle spin
+			particle[i].angle += particle[i].angleSpe * particle[i].angleDir;
+
+			// Particle movement
+			particle[i].x += particle[i].vX * particle[i].speed;
+			particle[i].y += particle[i].vY * particle[i].speed;
+
+			// Particle death
+			particle[i].time += particle[i].deathTimerSpeed;
+			if (particle[i].time > particle[i].deathTimer) {
+				particle[i].alive = false;
+				objectCountParticle--;
+			}
+
+			// Player lazer particles
+			if (particle[i].type == "LAZER")
+			{
+				// Particle map collision
+				if (particle[i].x+particle[i].w < map.x) {
+					particle[i].x = map.x+map.w-particle[i].w;
+				}
+				if (particle[i].x > map.x+map.w) {
+					particle[i].x = map.x-particle[i].w;
+				}
+				if (particle[i].y+particle[i].h < map.y) {
+					particle[i].y = map.y+map.h-particle[i].h;
+				}
+				if (particle[i].y > map.y+map.h) {
+					particle[i].y = map.y-particle[i].h;
+				}
+
+				//Update particles angle based on its X and Y velocities
+				particle[i].angle = atan2 ( particle[i].vY, particle[i].vX) * 180 / PI;
+			}
+
+			// Enemy lazer particles
+			if (particle[i].type == "LAZER_P")
+			{
+
+			}
+
+			// Star particles
+			if (particle[i].type == "stars"){
+				/*particle[i].x-=2;
+				particle[i].y-=2;
+				particle[i].w+=1;
+				particle[i].h+=1;*/
+				particle[i].alpha -= particle[i].alphaspeed;
+				if (particle[i].alpha < 0) {
+					particle[i].alive = false;
+					objectCountParticle--;
+				}
+			}
+		}
+	}
+}
+
+void renderParticle(Particle particle[], int camX, int camY, float playerZ) {
+	for (int i = 0; i < 1024; i++) {
+		if (particle[i].alive) {
+
+			// Render Player lazer particle
+			if (particle[i].type == "LAZER") {
+				SDL_Rect tempRect = {particle[i].x - camX,
+						   particle[i].y - camY,
+						   particle[i].w,  particle[i].h};
+				SDL_SetRenderDrawColor(gRenderer12, 255,255,255,255);
+				SDL_RenderFillRect(gRenderer12, &tempRect);
+
+				/*gBullet.setAlpha(particle[i].alpha);
+				gBullet.render(particle[i].x-47/2 - camX,
+							   particle[i].y-34/2 - camY,
+							    95,  68,
+							   NULL, particle[i].angle);*/
+			}
+
+			// Render Enemy lazer particle
+			if (particle[i].type == "LAZER_E") {
+				SDL_Rect tempRect = {particle[i].x - camX,
+						   particle[i].y - camY,
+						   particle[i].w,  particle[i].h};
+				SDL_SetRenderDrawColor(gRenderer12, 255,255,255,255);
+				SDL_RenderFillRect(gRenderer12, &tempRect);
+
+				/*gBullet.setAlpha(particle[i].alpha);
+				gBullet.render(particle[i].x-47/2 - camX,
+							   particle[i].y-34/2 - camY,
+							    95,  68,
+							   NULL, particle[i].angle);*/
+			}
+
+			// Render stars particle
+			if (particle[i].type == "stars") {
+				gParticles.setAlpha(particle[i].alpha);
+				gParticles.setColor(particle[i].color.r, particle[i].color.g, particle[i].color.b);
+				gParticles.render(gRenderer12, particle[i].x - camX/particle[i].layer,particle[i].y - camY/particle[i].layer, particle[i].w, particle[i].h,&cParticles[4], particle[i].angle);
+
+				/*if (particle[i].alpha < 100) {
+					gParticles.setAlpha(particle[i].alpha);
+					gParticles.render(particle[i].x - camX,particle[i].y - camY, particle[i].w, particle[i].h,&cParticles[4], particle[i].angle);
+				}
+
+				if (particle[i].alpha <= 75 && particle[i].alpha > 50) {
+					gParticles.setAlpha(particle[i].alpha);
+					gParticles.render(particle[i].x - camX,particle[i].y - camY, particle[i].w, particle[i].h,&cParticles[5], particle[i].angle);
+				}
+
+				if (particle[i].alpha <= 50 && particle[i].alpha > 25) {
+					gParticles.setAlpha(particle[i].alpha);
+					gParticles.render(particle[i].x - camX,particle[i].y - camY, particle[i].w, particle[i].h,&cParticles[2], particle[i].angle);
+				}
+
+				if (particle[i].alpha <= 25) {
+					gParticles.setAlpha(particle[i].alpha);
+					gParticles.render(particle[i].x - camX,particle[i].y - camY, particle[i].w, particle[i].h,&cParticles[3], particle[i].angle);
+				}*/
+			}
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------//
+////////////////////////////////////////////////////////// ENEMY BULLETS //////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//-------------------------------------------------------------------------------------------------------------------------------//
+///////////////////////////////////////////////////////////// Enemies /////////////////////////////////////////////////////////////
+
+// Initialize Enemy
+void initEnemy(Enemy enemy[]){
+	ENEMY_COUNT = 0;
+	for (int i=0; i<ENEMY_MAX; i++){
+		enemy[i].vX 			= 0.0;
+		enemy[i].vY 			= 0.0;
+		enemy[i].speed 			= 0.0;
+		enemy[i].timer			= 0;
+		enemy[i].health 		= 100;
+		enemy[i].damagedTimer 	= 0;
+		enemy[i].damaged 		= false;
+		enemy[i].collide 		= false;
+		enemy[i].alive 			= false;
+	}
+}
+
+// Spawn an Enemy
+void spawnEnemy(Enemy enemy[], float x, float y, int w, int h, double vX, double vY, double speed){
+	for (int i=0; i<ENEMY_MAX; i++){
+		if (!enemy[i].alive){
+			enemy[i].x		 		= x;
+			enemy[i].y 				= y;
+			enemy[i].w 				= w;
+			enemy[i].h 				= h;
+			enemy[i].vX 			= vX;
+			enemy[i].vY 			= vY;
+			enemy[i].speed 			= speed;
+			enemy[i].health 		= 100;
+			enemy[i].damagedTimer 	= 0;
+			enemy[i].damaged 		= false;
+			enemy[i].collide		= false;
+			enemy[i].alive 			= true;
+			ENEMY_COUNT++;
+			break;
+		}
+	}
+}
+
+// Update Enemy
+void updateEnemy(Enemy enemy[], Particle particle[], Explosion explosion[], float targetX, float targetY, int objectRadius, int &score){
+	for (int i=0; i<ENEMY_MAX; i++){
+		if (enemy[i].alive){
+
+			// Enemy movement
+			enemy[i].x += enemy[i].vX * enemy[i].speed;
+			enemy[i].y += enemy[i].vY * enemy[i].speed;
+
+			// Asteroid damaged animation timer
+			if (enemy[i].damaged){
+				enemy[i].damagedTimer += 1;
+				if (enemy[i].damagedTimer > 20){
+					enemy[i].damaged = false;
+					enemy[i].damagedTimer = 0;
+				}
+			}
+
+			// Enemy death
+			if (enemy[i].health <= 0){
+				//Spawn explosion after asteroid death
+				spawnExplosion(explosion, enemy[i].x+enemy[i].w/2-enemy[i].w/2, enemy[i].y+enemy[i].w/2-enemy[i].w/2,
+										  enemy[i].w, enemy[i].w, 255, "blue");
+				enemy[i].alive = false;
+				ENEMY_COUNT--;
+
+				score += 1000;
+			}
+
+			// Enemy death upon collision with Target
+			float bmx = targetX;
+			float bmy = targetY;
+			float distance = sqrt((bmx - enemy[i].x - enemy[i].w / 2)* (bmx - enemy[i].x- enemy[i].w / 2) +
+							      (bmy - enemy[i].y - enemy[i].h / 2)* (bmy - enemy[i].y- enemy[i].h / 2));
+			if (distance < objectRadius + enemy[i].w/2){
+				//Spawn explosion after asteroid death
+				//spawnExplosion(explosion, enemy[i].x+enemy[i].w/2-enemy[i].w/2, enemy[i].y+enemy[i].w/2-enemy[i].w/2,
+				//						  enemy[i].w, enemy[i].w, 255, "blue");
+				enemy[i].alive = false;
+				ENEMY_COUNT--;
+
+				score += 1000;
+			}
+
+			// Get some values used for shooting
+			float angle = atan2(bmy - enemy[i].y-enemy[i].h/2, bmx - enemy[i].x-enemy[i].w/2);
+			angle = angle * (180 / 3.1416);
+			float radians = (3.1415926536/180)*(angle);
+			float Cos = floor(cos(radians)*10+0.5)/10;
+			float Sin = floor(sin(radians)*10+0.5)/10;
+
+			// Enemy shooting
+			enemy[i].timer += 1;
+			if (enemy[i].timer > 120){
+				enemy[i].timer = 0;
+				Mix_PlayChannel(-1, sLazer, 0);
+				spawnParticleAngle(particle,
+								   enemy[i].x+enemy[i].w/2-4/2+(Cos*16),
+								   enemy[i].y+enemy[i].h/2-4/2+(Sin*16),
+								   4, 4,
+								   angle, 6,
+								   255, 1,
+								   200, 2,
+								   50, "LAZER_E",
+								   white, 1);
+			}
+
+			// Enemy death upon going off screen
+			if (enemy[i].x+enemy[i].w < map.x-512){
+				enemy[i].alive = false;
+				ENEMY_COUNT--;
+			}
+			if (enemy[i].x > map.x+map.w+512){
+				enemy[i].alive = false;
+				ENEMY_COUNT--;
+			}
+		}
+	}
+}
+
+// Render Enemy
+void renderEnemy(Enemy enemy[], int camx, int camy){
+	for (int i=0; i<ENEMY_MAX; i++){
+		if (enemy[i].alive){
+			gEnemyShip.render(gRenderer12, enemy[i].x-camx, enemy[i].y-camy, enemy[i].w, enemy[i].h);
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------//
+///////////////////////////////////////////////////////////// Enemies /////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// Tile placement info
+void renderBlockGhosts(int mx, int my)
+{
+	std::stringstream pIndex2;
+	pIndex2 << PLACING_TYPE;
+	gText.loadFromRenderedText(pIndex2.str().c_str(), {255, 255, 255, 255}, gFont13, gRenderer12);
+	gText.render(gRenderer12, 5, 31, gText.getWidth(), gText.getHeight());
+
+	if (PLACING_TYPE == 2){
+		SDL_Rect placeblockborder2 = { mx, my, BLOCKW * HOWMANYBLOCKSW, BLOCKH* HOWMANYBLOCKSH };
+		SDL_SetRenderDrawColor(gRenderer12, 244, 144, 25, 255);
+		SDL_RenderDrawRect(gRenderer12, &placeblockborder2);
+
+		std::stringstream pIndex;
+		pIndex << colonyIndex;
+		gText.loadFromRenderedText(pIndex.str().c_str(), {244, 144, 25, 255}, gFont13, gRenderer12);
+		gText.render(gRenderer12, 5, 44, gText.getWidth(), gText.getHeight());
+	}
+	if (PLACING_TYPE == 3){
+		SDL_Rect placeblockborder2 = { mx, my, BLOCKW * HOWMANYBLOCKSW, BLOCKH* HOWMANYBLOCKSH };
+		SDL_SetRenderDrawColor(gRenderer12, 0, 128, 255, 255);
+		SDL_RenderDrawRect(gRenderer12, &placeblockborder2);
+
+		std::stringstream pIndex;
+		pIndex << asteroidIndex;
+		gText.loadFromRenderedText(pIndex.str().c_str(), {0, 191, 255, 255}, gFont13, gRenderer12);
+		gText.render(gRenderer12, 5, 44, gText.getWidth(), gText.getHeight());
+	}
+	if (PLACING_TYPE == 4){
+		SDL_Rect placeblockborder2 = { mx, my, BLOCKW * HOWMANYBLOCKSW, BLOCKH* HOWMANYBLOCKSH };
+		SDL_SetRenderDrawColor(gRenderer12, 0, 244, 0, 255);
+		SDL_RenderDrawRect(gRenderer12, &placeblockborder2);
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//-------------------------------- Functions that include multiple Classes --------------------------------//
+//---------------------------------------------------------------------------------------------------------//
+
+// Check collision: Player Particle and Asteroid
+void checkCollisionParticleAsteroid(Particle particle[], Asteroid asteroid[]) {
+	for (int i = 0; i < 1024; i++) {
+		for (int j = 0; j < 128; j++) {
+			if (particle[i].alive) {
+				if (particle[i].type == "LAZER"){
+					if (asteroid[j].alive){
+						if (particle[i].x + particle[i].w > asteroid[j].x && particle[i].x < asteroid[j].x + asteroid[j].w
+								&& particle[i].y + particle[i].h > asteroid[j].y
+								&& particle[i].y < asteroid[j].y + asteroid[j].h) {
+							particle[i].collide = true;
+						} else {
+							particle[i].collide = false;
+						}
+						if (particle[i].collide){
+							particle[i].time = 0;
+							particle[i].alive = false;
+							objectCountParticle--;
+
+							asteroid[j].damaged = true;
+							asteroid[j].health -= particle[i].damage;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// Check collision: Player Particle and Enemy
+void checkCollisionParticleEnemy(Particle particle[], Enemy enemy[]) {
+	for (int i = 0; i < 1024; i++) {
+		for (int j = 0; j < ENEMY_MAX; j++) {
+			if (particle[i].alive) {
+				if (particle[i].type == "LAZER"){
+					if (enemy[j].alive){
+						if (particle[i].x + particle[i].w > enemy[j].x && particle[i].x < enemy[j].x + enemy[j].w
+								&& particle[i].y + particle[i].h > enemy[j].y
+								&& particle[i].y < enemy[j].y + enemy[j].h) {
+							particle[i].collide = true;
+						} else {
+							particle[i].collide = false;
+						}
+						if (particle[i].collide){
+							particle[i].time = 0;
+							particle[i].alive = false;
+							objectCountParticle--;
+
+							enemy[j].damaged = true;
+							enemy[j].health -= particle[i].damage;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// Check collision: Enemy Particle and Player
+void checkCollisionParticlePlayer(Particle particle[], float x, float y, int w, int h, int &health, bool alive) {
+	for (int i = 0; i < 1024; i++) {
+		for (int j = 0; j < 128; j++) {
+			if (particle[i].alive) {
+				if (particle[i].type == "LAZER_E"){
+					if (alive){
+						if (particle[i].x + particle[i].w > x && particle[i].x < x + w
+								&& particle[i].y + particle[i].h > y
+								&& particle[i].y < y + h) {
+							particle[i].collide = true;
+						} else {
+							particle[i].collide = false;
+						}
+						if (particle[i].collide){
+							particle[i].time = 0;
+							particle[i].alive = false;
+							objectCountParticle--;
+
+							health -= particle[i].damage;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// Spawn an Asteroid using a Spawn Point
+void spawnAsteroidsNow2(Colony colony[], Enemy enemy[], int &increment, int &wave, int score, bool &shield, int &shieldT)
+{
+	// Spawn an enemy after X amount of scores
+	if (SCORE_COUNT > 1000){
+		SCORE_COUNT = 0;
+		SPAWN_ENEMY = true;
+	}
+
+	// Spawn new wave of Enemies
+	if (SPAWN_ENEMY){
+		int randi, randw, randh;
+			randi = rand() % 4 + 1;
+			switch (randi){
+				case 1:{
+					//TODO - make Enemy X coordinate spawn more random
+					for (int j=0; j<ENEMY_SPAWN; j++){
+						randw = rand() % 5 + 1;
+						randh = rand() % 656;
+						spawnEnemy(enemy, map.x-64 - (64*randw), map.y+randh, 64, 32, 0.5, 0.0, 5);
+					}
+					break;
+				}
+				case 2:{
+					for (int j=0; j<ENEMY_SPAWN; j++){
+						randw = rand() % 5 + 1;
+						randh = rand() % 656;
+						spawnEnemy(enemy, map.x-64 - (64*randw), map.y+randh, 64, 32, 0.5, 0.0, 5);
+					}
+					break;
+				}
+				case 3:{
+					for (int j=0; j<ENEMY_SPAWN; j++){
+						randw = rand() % 5 + 1;
+						randh = rand() % 656;
+						spawnEnemy(enemy, map.x+map.w + (64*randw), map.y+randh, 64, 32, -0.5, 0.0, 5);
+					}
+					break;
+				}
+				case 4:{
+					for (int j=0; j<ENEMY_SPAWN; j++){
+						randw = rand() % 5 + 1;
+						randh = rand() % 656;
+						spawnEnemy(enemy, map.x+map.w + (64*randw), map.y+randh, 64, 32, -0.5, 0.0, 5);
+					}
+					break;
+				}
+			}
+
+		// Increase enemy count
+		if (ENEMY_SPAWN < 5){
+			ENEMY_SPAWN++;
+		}
+
+		// Stop spawning Enemies
+		SPAWN_ENEMY 	= false;
+	}
+
+	// Check if there is 0 Asteroids
+	if (checkDeathAsteroids){
+		if (ASTEROIDS <= 0){
+			checkDeathAsteroids = false;
+			increment += rand() % 2 + 1;
+			wave++;
+
+			for (int i=0; i<1+increment; i++){
+				int randVar 	= rand() % 3 + 1;
+				int randx 		= rand() % 1248;
+				int randy 		= rand() % 688;
+				int randw 		= 4;
+				int randh 		= 4;
+				switch (randVar){
+					case 1:
+						randw = 48;
+						randh = 48;
+					break;
+					case 2:
+						randw = 96;
+						randh = 96;
+					break;
+					case 3:
+						randw = 128;
+						randh = 128;
+					break;
+				}
+				randx = rand() % 1248;
+				randy = rand() % 688;
+				spawnColony(colony, 0+randx, 0+randy, randw, randh);
+			}
+
+			// Give Player a 180 ms shield
+			shield			= true;
+			shieldT			= 180;
+		}
+	}
+
+	// Start checking for no Asteroids, once we've spawned an Asteroid
+	if (ASTEROIDS > 0){
+		checkDeathAsteroids = true;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+

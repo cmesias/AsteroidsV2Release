@@ -1,0 +1,492 @@
+/*
+ * player.h
+ *
+ *  Created on: Dec 1, 2016
+ *      Author: Carl
+ */
+
+#ifndef PLAYER_H_
+#define PLAYER_H_
+
+//Player
+struct Player {
+public:
+	int timer = 0;
+	int w = 16, h = 16;
+	float x = map.x+map.w/2-32/2,
+		   y = map.y+map.h/2-32/2;
+	int panTimer 		= 0;
+	int shoottimer 		= 0;
+	double angle 		= 0.0,
+		   radians 		= 0.0,
+		   radianCos 	= 0.0,
+		   radianSin 	= 0.0;
+	float thrustSpeedX2 = 0.0,
+		  thrustSpeedY2 = 0.0,
+		  thrustSpeed 	= 0.0;
+	bool camlocked 		= false;
+	bool moveleft 		= false,
+		 moveright 		= false,
+		 moveup 		= false,
+		 movedown		= false,
+		 rotateLeft 	= false,
+		 rotateRight 	= false;
+	float AttackSpeed 	= 9.5;
+	float delayT 		= 0;
+	bool delay 			= false;
+	bool initialshot 	= false;
+	string side 		= "r";
+	string powerup 		= "LAZER";
+	string mode 		= "editor";
+	string travelMode 	= "travel";
+	string name			= "AAA";
+	bool thrust 		= false;
+	bool shift 			= false;
+	int timer2 			= 0;
+	double time 		= 0;
+	int health			= 200;
+	int score			= 0;
+	int increment		= 2;
+	int wave			= 0;
+	int shieldT			= 300;
+	bool shield			= true;
+	bool deathScreen	= true;
+	bool alive			= true;
+	Uint8 alpha			= 255;
+
+	double tempc, temps;
+
+	SDL_Rect continueButton[2];
+
+	// Reset game
+	void reset(){
+		this->x 					= map.x+map.w/2;
+		this->y 					= map.y+map.h/2;
+		this->score 				= 0;
+		this->wave 					= 0;
+		this->increment	 			= 2;
+		this->thrustSpeedX2 		= 0.0;
+		this->thrustSpeedY2 		= 0.0;
+		this->delayT 				= 0;
+		this->health				= 200;
+		this->delay 				= false;
+		this->initialshot 			= false;
+		this->thrust 				= false;
+		this->deathScreen 			= false;
+		this->alive 				= true;
+	}
+
+	// Update Player
+	void update(Asteroid asteroid[], Enemy enemy[], Particle particle[], Explosion explosion[], IPaddress srvadd, UDPsocket sd, int &HS, int &HW, int mx, int my, bool &leftclick)
+	{
+		if (this->alive){
+			//Moving Player
+			if (this->moveleft) {
+				this->thrustSpeedX2 -= 0.1;
+			}else if (this->moveright) {
+				this->thrustSpeedX2 += 0.1;
+			}
+			if (this->moveup) {
+				this->thrustSpeedY2 -= 0.1;
+			} else if (this->movedown) {
+				this->thrustSpeedY2 += 0.1;
+			}
+
+			//Ship follows mouse
+			/*if (this->travelMode == "fight"){
+				this->angle = atan2(my+camy - this->y-this->h/2,mx+camx - this->x-this->w/2);
+				this->angle = this->angle * (180 / 3.1416);
+
+				//Set player angle max limits
+				if (this->angle < 0) {
+					this->angle = 360 - (-this->angle);
+				}
+			}*/
+
+			//Ship follows rotation
+			if (this->travelMode == "travel")
+			{
+				//Add players angle with the rotation speed; Calculate players radian
+				//this->angle = atan2(my- this->y-this->h/2,mx- this->x-this->w/2);
+				//this->angle = this->angle * (180 / 3.1416);
+
+				//Angle/Rotation of Player
+				if (this->rotateLeft) {
+					this->angle -= 4;
+				} else if (this->rotateRight) {
+					this->angle += 4;
+				}
+				if (this->angle < 0) {
+					this->angle = 360 - (-this->angle);
+				}
+				this->radians = (3.1415926536/180)*(this->angle);
+				this->radianCos = floor(cos(this->radians)*10+0.5)/10;
+				this->radianSin = floor(sin(this->radians)*10+0.5)/10;
+
+
+				//Accelerate Player
+				if (this->thrust){
+					this->thrustSpeedX2 += cos(this->radians) * 0.05;
+					this->thrustSpeedY2 += sin(this->radians) * 0.05;
+
+					// Thrust effect
+					float x1, x2, y1, y2, anglet;
+					int randi, rands;
+					SDL_Color tempColor = { rand() % 255 + 1, rand() % 255 + 1, rand() % 255 + 1};
+					x1 				= this->x+this->w/2,
+					y1 				= this->y+this->h/2;
+					x2 				= this->x+this->w/2 + (100 * this->radianCos),
+					y2 				= this->y+this->h/2 + (100 * this->radianSin);
+					anglet 			= atan2(y1 - y2, x1 - x2);
+					anglet 			= anglet * (180 / 3.1416);
+					randi 			= fRand( 0, 16 );
+					rands 			= rand() % 3 + 4;
+					spawnParticleAngle(particle,
+									   this->x+this->w/2-rands/2, this->y+this->h/2-rands/2,
+									   rands, rands,
+									   anglet+(randi-8), rand() % 7 + 2,
+									   rand() % 150 + 50, 4,
+									   100, 0,
+									   0.0, "stars",
+									   tempColor, 1);
+				}
+
+				//Add player velocity
+				this->x += this->thrustSpeedX2*2;
+				this->y += this->thrustSpeedY2*2;
+
+				if (this->thrustSpeedX2 > 3) {
+					this->thrustSpeedX2 = 3;
+				}
+				if (this->thrustSpeedX2 < -3) {
+					this->thrustSpeedX2 = -3;
+				}
+				if (this->thrustSpeedY2 > 3) {
+					this->thrustSpeedY2 = 3;
+				}
+				if (this->thrustSpeedY2 < -3) {
+					this->thrustSpeedY2 = -3;
+				}
+			}
+
+			// Player shoot
+			if (this->mode == "player")
+			{
+				if (!this->delay)
+				{
+					if (this->initialshot)
+					{
+						this->initialshot = false;
+						//this->delay = true;
+
+						// Remove shield
+						/*if (this->shield){
+							this->shield 	= false;
+							this->shieldT 	= 300;
+						}*/
+
+						// Shoot particle
+						if (this->powerup == "LAZER") {
+							//Mix_PlayChannel(-1, sLazer, 0);
+							//float randAccuracy = fRand(0.0, 12.0);
+							/*spawnParticleAngle(particle,
+											   this->x+this->w/2-47/2+(cos(this->radians)*16),
+											   this->y+this->h/2-34/2+(sin(this->radians)*16),
+											   47, 34,
+											   this->angle+(-6.0+randAccuracy), 9,
+											   255, 1,
+											   200, 2,
+											   100);*/
+							Mix_PlayChannel(-1, sLazer, 0);
+							float randAccuracy = fRand(0.0, 2.0);
+							spawnParticleAngle(particle,
+											   this->x+this->w/2-4/2+(cos(this->radians)*16),
+											   this->y+this->h/2-4/2+(sin(this->radians)*16),
+											   4, 4,
+											   this->angle+(-1.0+randAccuracy), 16,
+											   255, 0,
+											   100, 2,
+											   100, "LAZER",
+											   white, 1);
+						}
+					}
+				}
+				//Start delay timer after our first shot!
+				if (this->delay) {
+					this->delayT += this->AttackSpeed;
+					if (this->delayT > 60) {
+						this->delay = false;
+						this->delayT = 0;
+					}
+				}
+			}
+
+			// Player shield
+			if (this->shield){
+				this->shieldT -= 1;
+				if (this->shieldT <= 0){
+					this->shieldT 	= 300;
+					this->shield 	= false;
+				}
+			}
+
+			// Update Player score and Wave
+			if (this->score > HS){
+				HS 	= this->score;
+			}
+			if (this->wave > HW){
+				HW 	= this->wave;
+			}
+
+			// Player death
+			if (this->health <=0)
+			{
+				// Reset some accumulated stuff
+				ENEMY_SPAWN 		= 1;
+				SCORE_COUNT			= 0;
+				SPAWN_ENEMY			= false;
+
+				// Set variables
+				this->shieldT 		= 300;
+				this->shield 		= true;
+				this->alive 		= false;
+				this->deathScreen 	= true;
+
+				//Spawn explosion after asteroid death
+				spawnExplosion(explosion, this->x+this->w/2-this->w/2, this->y+this->h/2-this->h/2,
+										  this->w, this->h, 255, "normal");
+
+				// Clear Enemies
+				for (int i = 0; i < ENEMY_MAX; i++) {
+					enemy[i].alive = false;
+				}
+				ENEMY_COUNT = 0;
+
+
+
+				/*ifstream file;
+				string str;
+				file.open("highscore.txt");
+				while (getline(file, str)){
+					cout << "str: " << str << endl;
+
+					istringstream iss(str);
+					string temps[3];
+					iss >> temps[0] >> temps[1] >> temps[2];
+					cout << temps[0] << endl;
+					cout << temps[1] << endl;
+					cout << temps[2] << endl;
+				}*/
+
+
+
+				// Send high score to server
+				/*std::stringstream tempSS;
+				tempSS << "GO" 			<< "\n"
+					   << "Carl"	    << "\n"
+					   << this->score;
+				UDPpacket *p;
+				p = SDLNet_AllocPacket(512);
+				p->data = (Uint8*) tempSS.str().c_str();
+				p->address.host = srvadd.host;
+				p->address.port = srvadd.port;
+				p->len = strlen(tempSS.str().c_str()) + 1;
+				SDLNet_UDP_Send(sd, -1, p);
+				SDLNet_FreePacket(p);*/
+
+
+
+
+				// Get name of Player
+				/*getUserInput(this->name);
+
+				ofstream fileS;
+				fileS.open("highscore.txt");
+				fileS << this->name << " " << HS << " " << HW;
+				fileS.close();
+				if (this->score > HS){
+					HS 	= this->score;
+				}
+				if (this->wave > HW){
+					HW 	= this->wave;
+				}
+				this->score 	= 0;
+				this->wave 		= 0;
+				this->health	= 200;
+				this->increment = 2;
+				this->x 		= map.x+map.w/2;
+				this->y 		= map.y+map.h/2;
+
+				for (int i = 0; i < 128; i++) {
+					asteroid[i].alive = false;
+				}
+				ASTEROIDS = 0;
+				this->alive = true;
+				*/
+			}
+		}else{
+				// Death Screen
+				if (this->deathScreen)
+				{
+					// Set button position
+					continueButton[0] = {gWindow.getWidth()/2-96/2-100, gWindow.getHeight()/2-gText.getHeight()/2, 96, 33};
+					continueButton[1] = {gWindow.getWidth()/2-96/2+100, gWindow.getHeight()/2-gText.getHeight()/2, 96, 33};
+
+					// Left click
+					if (leftclick)
+					{
+						// Option: Yes, reset everything
+						if (checkCollision(mx, my, 1, 1, continueButton[0].x, continueButton[0].y, continueButton[0].w, continueButton[0].h))
+						{
+							// Get Player name
+							getUserInput(this->name);
+
+							ofstream fileSave;
+							fileSave.open( "highscore.txt", ios::app );
+							fileSave << "\n" << this-> name << " " << HS;
+
+							// Open if there is a high-score text
+							/*ifstream fileO;
+								string temps[3];
+								bool save = false;
+								fileO.open("highscore.txt");
+								fileO >> temps[0] >> temps[1] >> temps[2];
+
+								// Check if current score is higher than saved high-score
+								if (this->score > atoi(temps[1].c_str())){
+									save = true;
+								}
+
+								// Save Player data if current score is higher than saved high-score
+								if (save){
+									ofstream fileS;
+									fileS.open("highscore.txt");
+									fileS << this->name << " " << HS << " " << HW;
+									fileS.close();
+								}
+							fileO.close();*/
+
+							// Reset Player
+							reset();
+							leftclick			= false;
+
+							// Reset Asteroids
+							for (int i = 0; i < 128; i++) {asteroid[i].alive = false;}
+							ASTEROIDS = 0;
+						}
+
+						// Option: No, go to Main Menu
+						if (checkCollision(mx, my, 1, 1, continueButton[1].x, continueButton[1].y, continueButton[1].w, continueButton[1].h))
+						{
+							this->deathScreen = false;
+						}
+					}
+				// Menu Screen
+				}else{
+					// Set button position
+					continueButton[0] = {gWindow.getWidth()/2-96/2, gWindow.getHeight()/2-gText.getHeight()/2, 96, 33};
+
+					// Left click
+					if (leftclick)
+					{
+						// Option: Play
+						if (checkCollision(mx, my, 1, 1, continueButton[0].x, continueButton[0].y, continueButton[0].w, continueButton[0].h))
+						{
+
+							// Reset Player
+							reset();
+
+							// Reset Asteroids
+							for (int i = 0; i < 128; i++) {asteroid[i].alive = false;}
+							ASTEROIDS = 0;
+						}
+					}
+				}
+		}
+	}
+
+	// Render Player
+	void render(int camx, int camy)
+	{
+		// Player alive
+		if (this->alive){
+
+			// Render Player
+			gPlayer.render(this->x-camx, this->y-camy,
+						   this->w, this->h, NULL,
+						   this->angle);
+
+			// Render Shield
+			if (this->shield){
+				gShield.render(this->x-4-camx, this->y-4-camy,
+							   24, 24);
+
+				SDL_Rect tempRect = {this->x-camx, this->y-16-camy, (this->w*this->shieldT)/300, 3};
+				SDL_SetRenderDrawColor(gRenderer, 255, 255, 255, 255);
+				SDL_RenderFillRect(gRenderer, &tempRect);
+
+			}
+
+		// Player death, or menu screen
+		}else{
+			// Player death screen
+			if (this->deathScreen)
+			{
+				// Render Text
+				gText.loadFromRenderedText("You have died. Continue?", white, gFont26);
+				gText.render(gWindow.getWidth()/2-gText.getWidth()/2, gWindow.getHeight()/2-gText.getHeight()/2-50, gText.getWidth(), gText.getHeight());
+
+				// Render buttons: Yes or No
+				SDL_SetRenderDrawColor(gRenderer, 0, 255, 0, 255);
+				SDL_RenderDrawRect(gRenderer, &continueButton[0]);
+
+				SDL_SetRenderDrawColor(gRenderer, 255, 0, 0, 255);
+				SDL_RenderDrawRect(gRenderer, &continueButton[1]);
+
+				// Render button texts: Yes or No
+				gText.loadFromRenderedText("Yes", white, gFont26);
+				gText.render( getCenter(continueButton[0].x, continueButton[0].w, gText.getWidth()), getCenter(continueButton[0].y, continueButton[0].h, gText.getHeight()), gText.getWidth(), gText.getHeight());
+				gText.loadFromRenderedText("No", white, gFont26);
+				gText.render( getCenter(continueButton[1].x, continueButton[1].w, gText.getWidth()), getCenter(continueButton[0].y, continueButton[0].h, gText.getHeight()), gText.getWidth(), gText.getHeight());
+
+			// Player Menu screen
+			}else{
+				// Render buttons: Play
+				SDL_SetRenderDrawColor(gRenderer, 0, 255, 0, 255);
+				SDL_RenderDrawRect(gRenderer, &continueButton[0]);
+
+				// Render Text
+				gText.loadFromRenderedText("PLAY", white, gFont26);
+				gText.render(getCenter(continueButton[0].x, continueButton[0].w, gText.getWidth()), getCenter(continueButton[0].y, continueButton[0].h, gText.getHeight()),
+							 gText.getWidth(), gText.getHeight());
+			}
+		}
+
+		// Debug
+		// Render Player collision box
+		//SDL_Rect tempRect {player.x-camx, player.y-camy, player.w, player.h};
+		//SDL_SetRenderDrawColor(gRenderer, 255, 244, 20, 255);
+		//SDL_RenderDrawRect(gRenderer, &tempRect);
+
+		//  Player UI
+		/*if (this->travelMode == "travel"){
+			gText.loadFromRenderedText("travel", {0,255,0,0}, gFont13);
+			gText.render(5, 5, gText.getWidth(), gText.getHeight());
+		}
+		if (this->travelMode == "fight"){
+			gText.loadFromRenderedText("fight", {255,0,0,0}, gFont13);
+			gText.render(5, 5, gText.getWidth(), gText.getHeight());
+		}
+		if (this->camlocked){
+			gText.loadFromRenderedText("cam: locked", {0,255,0,0}, gFont13);
+			gText.render(5, 18, gText.getWidth(), gText.getHeight());
+		}
+
+		if (!this->camlocked){
+			gText.loadFromRenderedText("cam: unlocked", {255,0,0,0}, gFont13);
+			gText.render(5, 18, gText.getWidth(), gText.getHeight());
+		}*/
+	}
+} player;
+
+#endif /* PLAYER_H_ */
