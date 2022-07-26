@@ -9,3 +9,6 @@ https://www.youtube.com/watch?v=tz5SHI-m94w
 
 # About
  A clone of the classic game Asteroids.
+ 
+ # Download
+ * https://cmesias.itch.io/asteroids
