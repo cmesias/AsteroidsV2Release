@@ -7,5 +7,5 @@
 # Gameplay
 https://www.youtube.com/watch?v=tz5SHI-m94w
 
-#About
+# About
  A clone of the classic game Asteroids.
